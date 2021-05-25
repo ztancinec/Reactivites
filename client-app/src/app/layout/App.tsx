@@ -1,100 +1,36 @@
 import React, { Fragment, useEffect, useState } from 'react';
-import { Container } from 'semantic-ui-react';
-import { Activity } from '../models/activity';
+import { Button, Container } from 'semantic-ui-react';
 import NavBar from './NavBar';
 import ActivityDashboard from '../../features/activities/dashboard/ActivityDashboard';
-import {v4 as uuid} from 'uuid';
-import agent from '../api/agent';
-import LoadingComponent from './LoadingComponent';
-import { useStore } from '../stores/store';
+import { observer } from 'mobx-react-lite';
+import { Route } from 'react-router';
+import HomePage from '../../features/home/homepage';
+import ActivityForm from '../../features/activities/form/ActivityForm';
+import ActivityDetails from '../../features/activities/details/ActivityDeatils';
+import { useLocation } from 'react-router-dom';
 
 function App() {
-  const {activityStore} = useStore();
-
-  const [activities, setActivties] = useState<Activity[]>([]);
-  const [selectedActivity, setSelectedActivity] = useState<Activity | undefined>(undefined);
-  const [editMode, setEditMode] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    agent.Activities.list().then(response => {
-      let actvities = [];
-      response.forEach(activty => {
-        activty.date = activty.date.split('T')[0];
-        activities.push(activty);
-      });
-      setActivties(response);
-      setLoading(false);
-    });
-  }, []);
-
-  function handleSelectActivity(id: string) {
-    setSelectedActivity(activities.find(x => x.id === id));
-  }
-
-  function handleCancelSelectActivity() {
-    setSelectedActivity(undefined);
-  }
-
-  function handleOpenForm(id?: string) {
-    id ? handleSelectActivity(id) : handleCancelSelectActivity();
-    setEditMode(true);
-  }
-
-  function handleCloseForm() {
-    setEditMode(false);
-  }
-
-  function editOrCreateActivity(activity: Activity) {
-    setSubmitting(true);
-    
-    if(activity.id) {
-      agent.Activities.update(activity).then(() => {
-        setActivties([...activities.filter(x => x.id !== activity.id), activity]);
-        setSelectedActivity(activity);
-        setEditMode(false);
-        setSubmitting(false);
-      })
-    } else {
-      activity.id = uuid();
-      setActivties([...activities, activity]);
-      setSelectedActivity(activity);
-      setEditMode(false);
-      setSubmitting(false);
-    }
-  }
-
-  function handleDeleteActivty(id: string) {
-    setSubmitting(true);
-    agent.Activities.delete(id).then(() => {
-      setActivties([...activities.filter(x => x.id !== id)]);
-      setSubmitting(false);
-    })
-  }
-
-  if (loading) return <LoadingComponent content='Loading app' />
+  const location = useLocation();
 
   return (
     <>
-      <NavBar handleOpenForm={handleOpenForm} />
-      <Container style={{marginTop: '7em'}}>
-        <h2>{activityStore.title}</h2>
-        <ActivityDashboard 
-          activities={activities}
-          selectedActivity={selectedActivity}
-          selectActivity={handleSelectActivity}
-          cancelSelectActivity={handleCancelSelectActivity}
-          editMode={editMode}
-          handleOpenForm={handleOpenForm}
-          handleCloseForm={handleCloseForm}
-          editOrCreate={editOrCreateActivity}
-          deleteActivity={handleDeleteActivty}
-          submitting = {submitting}
-        />
-      </Container>  
+      <Route exact path='/' component={HomePage}/>
+      <Route 
+        path='/(.+)' 
+        render={() => (
+          <>
+            <NavBar />
+            <Container style={{marginTop: '7em'}}>
+              <Route exact path='/activities' component={ActivityDashboard}/>
+              <Route path='/activities/:id' component={ActivityDetails}/>
+              <Route key={location.key} path={['/createActivity', '/manage/:id']} component={ActivityForm}/>
+            </Container>  
+          </>
+        )}
+      />
+      
     </>
   );
 }
 
-export default App;
+export default observer(App);
